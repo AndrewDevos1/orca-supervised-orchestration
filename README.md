@@ -1,40 +1,116 @@
 # Orca Supervised Orchestration
 
-Skill experimental para Hermes coordenar workers, incluindo Antigravity, pelo Orca CLI nativo. O foco é supervisão: autorização explícita, worktrees isolados, WIP=1, evidência verificável e revisão humana após cada worker.
+**Uma skill para o Hermes Agent delegar tarefas a outros agentes de programação por meio do Orca CLI — e auditar as entregas antes de aceitá-las.**
 
-## Estado
+**Estado:** experimental · **Formato:** skill do Hermes (não é plugin do Orca) · **Licença:** [MIT](LICENSE)
 
-Experimental. A documentação foi validada contra Orca CLI `1.4.248` em ambiente Linux/WSL com Orca alcançável. Isso não prova compatibilidade universal, wake automático, execução remota, nem homologação em todos os sistemas.
+## Qual problema resolve?
 
-## O que este projeto é — e não é
+Quem utiliza mais de um agente de programação frequentemente precisa distribuir tarefas, acompanhar o que foi feito e verificar se o código entregue realmente atende aos requisitos. Simplesmente encaminhar um prompt para outro agente não comprova que o trabalho foi concluído corretamente.
 
-Esta distribuição fornece `SKILL.md` e documentação sob [MIT](LICENSE). Não torna Hermes, Orca, Antigravity, modelos, serviços ou dependências de terceiros open source. Use cada produto sob seus próprios termos.
+A **Orca Supervised Orchestration** fornece ao Hermes um procedimento de delegação e supervisão usando a orquestração **nativa do Orca**. O Hermes continua responsável pelas instruções, permissões, validação e decisão de aceite; o agente executor realiza o trabalho no ambiente autorizado.
 
-Não cria daemon, cron, servidor, dashboard, Kanban paralelo ou automação autônoma. Não autoriza push, merge, deploy, cutover, banco, credenciais, sincronização produtiva ou bypass de trust/permissões.
+## Como funciona?
 
-## Começar
+```text
+Solicitação do desenvolvedor
+           |
+           v
+       Hermes Agent
+   Escopo e autorização
+           |
+           v
+         Orca CLI
+   Run / Task / Dispatch
+           |
+           v
+ Agente executor compatível
+   (ex.: Antigravity)
+           |
+           v
+  Worktree e evidências
+           |
+           v
+       Hermes Agent
+ Revisão de diff + testes
+           |
+           v
+   Aceitar / corrigir /
+   bloquear com evidência
+```
 
-1. Leia [INSTALL.md](INSTALL.md).
-2. Verifique seu runtime com os comandos de [USAGE.md](USAGE.md).
-3. Use os exemplos de [USE-CASES.md](USE-CASES.md) somente em worktree e card autorizados.
-4. Antes de recuperar sessão/terminal, leia [docs/RECOVERY.md](docs/RECOVERY.md).
+- **Hermes:** interpreta a solicitação, confere o escopo aprovado, delega, acompanha o retorno e audita o resultado.
+- **Orca:** oferece os mecanismos nativos de Run, Task, Dispatch e worktrees.
+- **Agente executor:** realiza a investigação ou implementação autorizada; um exemplo é o Antigravity quando disponível e configurado no Orca.
+- **Desenvolvedor:** decide questões de escopo, confirma gates humanos e aprova ações que exigem autorização específica.
 
-## Conteúdo
+O retorno `worker_done` é um **sinal de conclusão da execução**, não uma prova de qualidade. O Hermes deve conferir os arquivos produzidos, alterações rastreadas e não rastreadas, testes, permissões e critérios da tarefa.
 
-- [Arquitetura](docs/ARCHITECTURE.md)
-- [Fluxo supervisionado](docs/WORKFLOW.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Validação T0–T4](docs/VALIDATION-T0-T4.md)
-- [Manutenção](docs/MAINTENANCE.md) e [versionamento](docs/VERSIONING.md)
-- [Contribuição](CONTRIBUTING.md), [segurança](SECURITY.md) e [código de conduta](CODE_OF_CONDUCT.md)
+## Exemplo de uso
 
-## Limitações importantes
+Um desenvolvedor solicita ao Hermes:
 
-- `worker_done` não equivale a aceite; valide worktree, diffs, arquivos não rastreados e testes.
-- Timeout, silêncio e `liveness=unverifiable` não provam que um worker parou. Não duplique executores.
-- `agent-trust-workspace` é gate humano para um path. Não contorne nem altere trust silenciosamente.
-- A ajuda da CLI instalada prevalece sobre exemplos estáticos desta distribuição.
+> Investigue um bug no meu projeto. Use o Orca para delegar a análise a um agente compatível em um worktree isolado. Não altere arquivos sem autorização. Depois, confira as evidências e me apresente o diagnóstico.
 
-## Licença
+Após a autorização e o preflight, o Hermes pode preparar um Run e um Dispatch no Orca, acompanhar o resultado do worker e revisar o material antes de aceitar ou solicitar correções.
 
-[MIT](LICENSE), Copyright (c) 2026 AndrewDevos1.
+**Essa skill não é um atalho para usar credenciais de um fornecedor em outro.** Ela utiliza mecanismos de orquestração disponíveis no ambiente configurado; o acesso a cada agente continua sujeito às regras, aos limites, às permissões e aos termos do respectivo fornecedor. **Não há garantia de que qualquer integração seja permitida em todos os planos, nem de ausência de bloqueio de conta.**
+
+## O que a skill oferece?
+
+- Delegação supervisionada usando a CLI nativa do Orca, sem criar um orquestrador paralelo.
+- Trabalho em worktrees isolados, com **WIP=1** e verificação de escopo autorizado.
+- Correlação de Run/Task/Dispatch e verificação das entregas do worker.
+- Tratamento explícito de falhas, estados incertos e bloqueios de confiança do workspace.
+- Revisão de evidências antes de declarar uma tarefa `PASS`, `PARTIAL` ou `BLOCKED`.
+
+Ela **não** instala ou fornece Hermes, Orca, Antigravity, modelos, contas, tokens ou cotas. Também não cria plugin nativo do Orca, daemon, servidor, scheduler, dashboard ou Kanban próprio; não concede permissões para push, merge, deploy, acesso a banco produtivo ou contorno de controles de segurança.
+
+## Instalação inicial
+
+**Pré-requisitos:** Hermes Agent com suporte a skills; Orca CLI instalado, configurado e acessível pelo Hermes; Git; e ao menos um agente executor disponível e autorizado no Orca.
+
+Exemplo de instalação manual em **Linux/WSL**, partindo de uma instalação já funcional do Hermes:
+
+```sh
+git clone https://github.com/AndrewDevos1/orca-supervised-orchestration.git
+cd orca-supervised-orchestration
+mkdir -p ~/.hermes/skills/autonomous-ai-agents/orca-supervised-orchestration
+cp SKILL.md ~/.hermes/skills/autonomous-ai-agents/orca-supervised-orchestration/SKILL.md
+```
+
+Abra uma nova sessão do Hermes para carregar a skill. **Antes de sobrescrever uma instalação anterior, compare o conteúdo e o hash** conforme [INSTALL.md](INSTALL.md).
+
+Verifique a conectividade e os recursos efetivamente disponíveis:
+
+```sh
+orca status --json
+orca repo list --json
+orca skills get orchestration
+```
+
+Esses comandos verificam pré-requisitos; **não** comprovam, por si sós, que um worker pode executar no seu workspace. Confirme permissões, confiança e suporte do agente no seu ambiente. Veja [INSTALL.md](INSTALL.md) e [USAGE.md](USAGE.md) para o procedimento completo.
+
+## Quando for necessária intervenção humana
+
+Se o Orca indicar `agent-trust-workspace`, o Hermes deve mostrar **o caminho exato** e a confirmação necessária no aplicativo oficial. Depois de uma resposta como “pronto”, ele **verifica novamente o estado nativo** antes de retomar. A resposta do usuário não substitui a confirmação técnica. Não é permitido contornar confiança, autenticação ou criar um worker duplicado por timeout.
+
+## Estado e limitações
+
+A distribuição é **experimental**. A documentação foi elaborada com referência ao Orca CLI `1.4.248` em um cenário Linux/WSL com runtime Orca alcançável. Os testes documentados não demonstram compatibilidade universal, entrega automática de wake em todos os cenários, recuperação autônoma de qualquer falha de transporte ou execução em todos os sistemas.
+
+A ajuda da **versão efetivamente instalada** da CLI prevalece sobre exemplos deste README. Veja [Validação T0–T4](docs/VALIDATION-T0-T4.md).
+
+## Documentação
+
+- [Instalação](INSTALL.md) · [Uso](USAGE.md) · [Casos de uso](USE-CASES.md)
+- [Arquitetura](docs/ARCHITECTURE.md) · [Workflow](docs/WORKFLOW.md)
+- [Recuperação](docs/RECOVERY.md) · [Solução de problemas](docs/TROUBLESHOOTING.md)
+- [Validação](docs/VALIDATION-T0-T4.md) · [Manutenção](docs/MAINTENANCE.md) · [Versionamento](docs/VERSIONING.md)
+- [Contribuição](CONTRIBUTING.md) · [Segurança](SECURITY.md) · [Código de conduta](CODE_OF_CONDUCT.md)
+
+## Licença e autoria
+
+Código e documentação **deste repositório**: [MIT](LICENSE), Copyright (c) 2026 AndrewDevos1. A licença não se estende a Hermes, Orca, Antigravity, modelos ou dependências de terceiros, que têm seus próprios termos.
+
+**Futuro possível:** avaliar um plugin nativo do Orca como iniciativa separada, sem confundi-lo com a skill atual do Hermes.

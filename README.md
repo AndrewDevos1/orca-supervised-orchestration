@@ -12,31 +12,21 @@ A **Orca Supervised Orchestration** fornece ao Hermes um procedimento de delega�
 
 ## Como funciona?
 
-```text
-Solicitação do desenvolvedor
-           |
-           v
-       Hermes Agent
-   Escopo e autorização
-           |
-           v
-         Orca CLI
-   Run / Task / Dispatch
-           |
-           v
- Agente executor compatível
-   (ex.: Antigravity)
-           |
-           v
-  Worktree e evidências
-           |
-           v
-       Hermes Agent
- Revisão de diff + testes
-           |
-           v
-   Aceitar / corrigir /
-   bloquear com evidência
+```mermaid
+flowchart TD
+    U["Desenvolvedor solicita uma tarefa"] --> H["Hermes verifica escopo e autorização"]
+    H --> G{"Tarefa autorizada e ambiente elegível?"}
+    G -->|Não| B["Solicitar decisão humana ou registrar impedimento"]
+    G -->|Sim| O["Orca registra Run, Task e Dispatch"]
+    O --> A["Agente executor trabalha em worktree isolado"]
+    A --> E["Orca registra resultado e, quando emitido, worker_done"]
+    E --> V["Hermes recebe notificação ou reconcilia o estado"]
+    V --> R["Hermes verifica diffs, testes e requisitos"]
+    R --> D{"Entrega comprovada?"}
+    D -->|PASS| P["Registrar evidências e concluir"]
+    D -->|REWORK autorizado| C["Solicitar correção supervisionada"]
+    D -->|BLOCKED| F["Preservar estado e informar impedimento"]
+    C --> H
 ```
 
 - **Hermes:** interpreta a solicitação, confere o escopo aprovado, delega, acompanha o retorno e audita o resultado.
@@ -45,6 +35,10 @@ Solicitação do desenvolvedor
 - **Desenvolvedor:** decide questões de escopo, confirma gates humanos e aprova ações que exigem autorização específica.
 
 O retorno `worker_done` é um **sinal de conclusão da execução**, não uma prova de qualidade. O Hermes deve conferir os arquivos produzidos, alterações rastreadas e não rastreadas, testes, permissões e critérios da tarefa.
+
+A notificação de conclusão não substitui a revisão. Em caso de falha de entrega do evento, o Hermes consulta o estado persistido pelo Orca antes de tomar qualquer decisão; **não** inicia um segundo worker por silêncio.
+
+Para ver as mensagens e o fluxo de recuperação, consulte [Comunicação e eventos](docs/WORKFLOW.md) e [Recuperação](docs/RECOVERY.md).
 
 ## Exemplo de uso
 
